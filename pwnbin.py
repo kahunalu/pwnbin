@@ -13,24 +13,33 @@ def main():
 	time_out = False
 	length = 0
 
-	print "\nCrawling " + root_url
+	initialize_keywords()
 
-	while True:
-		root_html = BeautifulSoup(fetch_page(root_url), 'html.parser')
-		for page in find_new_pages(root_html):
-			length = len(paste_list)
-			paste_list.add(page)
-			if len(paste_list) > length:
-				find_passwords(raw_url+page)
-			else:
-				time_out = True
+	print "\nCrawling " + root_url + " Press ctrl+c to save file to log.txt"
+	try:
+		while True:
+			root_html = BeautifulSoup(fetch_page(root_url), 'html.parser')
+			for page in find_new_pages(root_html):
+				length = len(paste_list)
+				paste_list.add(page)
+				if len(paste_list) > length:
+					find_passwords(raw_url+page)
+				else:
+					time_out = True
 
-		if time_out:
-			time.sleep(2)
+			if time_out:
+				time.sleep(2)
 
-		sys.stdout.write("\rCrawled total of %d Pages containing keywords %d" % (len(paste_list), len(has_passwords)))
-		sys.stdout.flush()
-
+			sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(has_passwords)))
+			sys.stdout.flush()
+	except KeyboardInterrupt:
+		print "\n\n"
+		if len(has_passwords):
+			f = open('log.txt', 'w')
+			for paste in has_passwords:
+				f.write(paste)
+		else:
+			print "No relevant pastes found, exiting\n\n"
 def find_new_pages(root_html):
 	new_pastes = []
 
@@ -44,14 +53,20 @@ def find_new_pages(root_html):
 
 def find_passwords(raw_url):
 	paste = fetch_page(raw_url)
+
 	for keyword in keywords:
 		if keyword in paste:
-			has_passwords.append("found " + keyword + " in " + raw_url)
+			has_passwords.append("found " + keyword + " in " + raw_url + "\n")
 		break
 
 def fetch_page(page):
 	response = urllib2.urlopen(page)
 	return response.read()
+
+def initialize_keywords():
+	global keywords
+	if len(sys.argv) is 2:
+		keywords = set(sys.argv[1].replace("-k=", "").split(","))
 
 if __name__ == "__main__":
 	main()
