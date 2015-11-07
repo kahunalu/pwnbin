@@ -1,72 +1,113 @@
-from bs4 import BeautifulSoup
-import urllib2
 import time
-import sys
+import urllib2
+import sys, getopt
+from bs4 import BeautifulSoup
 
-keywords = ['ssh', 'pass', 'key', 'token']
-root_url = 'http://pastebin.com'
-raw_url = 'http://pastebin.com/raw.php?i='
-has_passwords = []
+def main(argv):
 
-def main():
-	paste_list = set([])
-	time_out = False
-	length = 0
-
-	initialize_keywords()
-
-	print "\nCrawling " + root_url + " Press ctrl+c to save file to log.txt"
+	length 				= 0
+	time_out 			= False
+	found_keywords 		= []
+	paste_list 			= set([])
+	root_url 			= 'http://pastebin.com'
+	raw_url 			= 'http://pastebin.com/raw.php?i='
+	file_name, keywords = initialize_options(argv)
+	
+	print "\nCrawling %s Press ctrl+c to save file to log.txt" % root_url
+	
 	try:
+		# Continually loop until user stops execution
 		while True:
+
+			#	Get pastebin home page html
 			root_html = BeautifulSoup(fetch_page(root_url), 'html.parser')
-			for page in find_new_pages(root_html):
+			
+			#	For each paste in the public pastes section of home page
+			for paste in find_new_pastes(root_html):
+				
+				#	look at length of paste_list prior to new element
 				length = len(paste_list)
-				paste_list.add(page)
+				paste_list.add(paste)
+
+				#	If the length has increased the paste is unique since a set has no duplicate entries
 				if len(paste_list) > length:
-					find_passwords(raw_url+page)
+					
+					#	Add the pastes url to found_keywords if it contains keywords
+					raw_paste = raw_url+paste
+					found_keywords = find_passwords(raw_paste, found_keywords, keywords)
 				else:
+
+					#	If keywords are not found enter time_out
 					time_out = True
 
+			# Enter the timeout if no new pastes have been found
 			if time_out:
 				time.sleep(2)
 
-			sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(has_passwords)))
+			sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
 			sys.stdout.flush()
+
+	# 	On keyboard interupt
+	# 	todo: add in error if fetching page errors
 	except KeyboardInterrupt:
-		print "\n\n"
-		if len(has_passwords):
-			f = open('log.txt', 'w')
-			for paste in has_passwords:
+		
+		# 	if pastes with keywords have been found
+		if len(found_keywords):
+
+			#	Write out urls of keyword pastes to file specified
+			f = open(file_name, 'w')
+			for paste in found_keywords:
 				f.write(paste)
+			print "\n"
 		else:
-			print "No relevant pastes found, exiting\n\n"
-def find_new_pages(root_html):
+			print "\n\nNo relevant pastes found, exiting\n\n"
+
+def find_new_pastes(root_html):
 	new_pastes = []
 
 	div = root_html.find('div', {'id': 'menu_2'})
 	ul = div.find('ul', {'class': 'right_menu'})
+	
 	for li in ul.findChildren():
 		if li.find('a'):
 			new_pastes.append(str(li.find('a').get('href')).replace("/", ""))
 
 	return new_pastes
 
-def find_passwords(raw_url):
+def find_passwords(raw_url, found_keywords, keywords):
 	paste = fetch_page(raw_url)
 
 	for keyword in keywords:
 		if keyword in paste:
-			has_passwords.append("found " + keyword + " in " + raw_url + "\n")
+			found_keywords.append("found " + keyword + " in " + raw_url + "\n")
 		break
+
+	return found_keywords
 
 def fetch_page(page):
 	response = urllib2.urlopen(page)
 	return response.read()
 
-def initialize_keywords():
-	global keywords
-	if len(sys.argv) is 2:
-		keywords = set(sys.argv[1].replace("-k=", "").split(","))
+def initialize_options(argv):
+	keywords = ['ssh', 'pass', 'key', 'token']
+	file_name = 'log.txt'
+
+	try:
+		opts, args = getopt.getopt(argv,"h:ko")
+	except getopt.GetoptError:
+		print 'test.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
+		sys.exit(2)
+	
+	for opt, arg in opts:
+		if opt == '-h':
+			print 'test.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
+			sys.exit()
+		elif opt in ("-k", "--keywords"):
+			keywords = set(arg[1:].split(","))
+		elif opt in ("-o", "--outfile"):
+			file_name = arg[1:]
+
+	return file_name, keywords
 
 if __name__ == "__main__":
-	main()
+	main(sys.argv[1:])
