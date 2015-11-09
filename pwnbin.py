@@ -5,13 +5,13 @@ from bs4 import BeautifulSoup
 
 def main(argv):
 
-	length 				= 0
-	time_out 			= False
-	found_keywords 		= []
-	paste_list 			= set([])
-	root_url 			= 'http://pastebin.com'
-	raw_url 			= 'http://pastebin.com/raw.php?i='
-	file_name, keywords = initialize_options(argv)
+	length 						= 0
+	time_out 					= False
+	found_keywords				= []
+	paste_list 					= set([])
+	root_url 					= 'http://pastebin.com'
+	raw_url 					= 'http://pastebin.com/raw.php?i='
+	file_name, keywords, append = initialize_options(argv)
 	
 	print "\nCrawling %s Press ctrl+c to save file to log.txt" % root_url
 	
@@ -34,7 +34,7 @@ def main(argv):
 					
 					#	Add the pastes url to found_keywords if it contains keywords
 					raw_paste = raw_url+paste
-					found_keywords = find_passwords(raw_paste, found_keywords, keywords)
+					found_keywords = find_keywords(raw_paste, found_keywords, keywords)
 				else:
 
 					#	If keywords are not found enter time_out
@@ -48,19 +48,35 @@ def main(argv):
 			sys.stdout.flush()
 
 	# 	On keyboard interupt
-	# 	todo: add in error if fetching page errors
 	except KeyboardInterrupt:
-		
-		# 	if pastes with keywords have been found
-		if len(found_keywords):
+		write_out(found_keywords, append, file_name)
 
-			#	Write out urls of keyword pastes to file specified
-			f = open(file_name, 'w')
-			for paste in found_keywords:
-				f.write(paste)
-			print "\n"
+	#	If http request returns an error and 
+	except urllib2.HTTPError, err:
+		if err.code == 404:
+			print "Error 404: Pastes not found!"
+		elif err.code == 403:
+			print "Error 403: Pastebin is mad at you!"
 		else:
-			print "\n\nNo relevant pastes found, exiting\n\n"
+			print "You\'re on your own on this one! Error code %s", err.code
+		write_out(found_keywords, append, file_name)
+
+
+def write_out(found_keywords, append, file_name):
+	# 	if pastes with keywords have been found
+	if len(found_keywords):
+
+		#	Write or Append out urls of keyword pastes to file specified
+		if append:
+			f = open(file_name, 'a')
+		else:
+			f = open(file_name, 'w')
+
+		for paste in found_keywords:
+			f.write(paste)
+		print "\n"
+	else:
+		print "\n\nNo relevant pastes found, exiting\n\n"
 
 def find_new_pastes(root_html):
 	new_pastes = []
@@ -74,9 +90,10 @@ def find_new_pastes(root_html):
 
 	return new_pastes
 
-def find_passwords(raw_url, found_keywords, keywords):
+def find_keywords(raw_url, found_keywords, keywords):
 	paste = fetch_page(raw_url)
 
+	#	Todo: Add in functionality to rank hit based on how many of the keywords it contains
 	for keyword in keywords:
 		if keyword in paste:
 			found_keywords.append("found " + keyword + " in " + raw_url + "\n")
@@ -91,23 +108,27 @@ def fetch_page(page):
 def initialize_options(argv):
 	keywords = ['ssh', 'pass', 'key', 'token']
 	file_name = 'log.txt'
+	append = False
 
 	try:
-		opts, args = getopt.getopt(argv,"h:ko")
+		opts, args = getopt.getopt(argv,"h:koa")
 	except getopt.GetoptError:
 		print 'test.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 		sys.exit(2)
 	
 	for opt, arg in opts:
+
 		if opt == '-h':
 			print 'test.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 			sys.exit()
+		elif opt == '-a':
+			append = True
 		elif opt in ("-k", "--keywords"):
 			keywords = set(arg[1:].split(","))
 		elif opt in ("-o", "--outfile"):
 			file_name = arg[1:]
 
-	return file_name, keywords
+	return file_name, keywords, append
 
 if __name__ == "__main__":
 	main(sys.argv[1:])

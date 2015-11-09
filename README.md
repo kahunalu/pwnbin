@@ -14,3 +14,7 @@ All pastes are then returned after sending completion signal ctrl+c.
 
     k=ssh,pass,key,token
     o=log.txt
+
+  Optional command:
+
+  	-a, Append to file instead of overwriting file.
