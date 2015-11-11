@@ -13,7 +13,7 @@ def main(argv):
 	raw_url 					= 'http://pastebin.com/raw.php?i='
 	file_name, keywords, append = initialize_options(argv)
 	
-	print "\nCrawling %s Press ctrl+c to save file to log.txt" % root_url
+	print "\nCrawling %s Press ctrl+c to save file to %s" % (root_url, file_name)
 	
 	try:
 		# Continually loop until user stops execution
@@ -54,11 +54,16 @@ def main(argv):
 	#	If http request returns an error and 
 	except urllib2.HTTPError, err:
 		if err.code == 404:
-			print "Error 404: Pastes not found!"
+			print "\n\nError 404: Pastes not found!"
 		elif err.code == 403:
-			print "Error 403: Pastebin is mad at you!"
+			print "\n\nError 403: Pastebin is mad at you!"
 		else:
-			print "You\'re on your own on this one! Error code %s", err.code
+			print "\n\nYou\'re on your own on this one! Error code ", err.code
+		write_out(found_keywords, append, file_name)
+
+	#	If http request returns an error and 
+	except urllib2.URLError, err:
+		print "\n\nYou\'re on your own on this one! Error code ", err
 		write_out(found_keywords, append, file_name)
 
 
@@ -111,22 +116,22 @@ def initialize_options(argv):
 	append = False
 
 	try:
-		opts, args = getopt.getopt(argv,"h:koa")
+		opts, args = getopt.getopt(argv,"h:k:o:a")
 	except getopt.GetoptError:
-		print 'test.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
+		print 'pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 		sys.exit(2)
 	
 	for opt, arg in opts:
 
 		if opt == '-h':
-			print 'test.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
+			print 'pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 			sys.exit()
 		elif opt == '-a':
 			append = True
 		elif opt in ("-k", "--keywords"):
-			keywords = set(arg[1:].split(","))
+			keywords = set(arg.split(","))
 		elif opt in ("-o", "--outfile"):
-			file_name = arg[1:]
+			file_name = arg
 
 	return file_name, keywords, append
 
