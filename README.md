@@ -8,12 +8,12 @@ All pastes are then returned after sending completion signal ctrl+c.
   
   Basic command:
   
-    python pwnbin.py -k=<keyword1>,<keyword2>,<keyword3>..... -o=<outputfile>
+    python pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>
   
   Both the keyword and outputfile arguments are optional and default to 
 
-    k=ssh,pass,key,token
-    o=log.txt
+    -k ssh,pass,key,token
+    -o log.txt
 
   Optional command:
 
