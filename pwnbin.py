@@ -1,20 +1,22 @@
 import time
 import urllib2
+import datetime
 import sys, getopt
 from bs4 import BeautifulSoup
 
 def main(argv):
 
-	length 						= 0
-	time_out 					= False
-	found_keywords				= []
-	paste_list 					= set([])
-	root_url 					= 'http://pastebin.com'
-	raw_url 					= 'http://pastebin.com/raw.php?i='
-	file_name, keywords, append = initialize_options(argv)
+	length 									= 0
+	time_out 								= False
+	found_keywords							= []
+	paste_list 								= set([])
+	root_url 								= 'http://pastebin.com'
+	raw_url 								= 'http://pastebin.com/raw.php?i='
+	start_time								= datetime.datetime.now()
+	file_name, keywords, append, run_time 	= initialize_options(argv)
 	
 	print "\nCrawling %s Press ctrl+c to save file to %s" % (root_url, file_name)
-	
+
 	try:
 		# Continually loop until user stops execution
 		while True:
@@ -46,6 +48,10 @@ def main(argv):
 
 			sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
 			sys.stdout.flush()
+
+			if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
+				write_out(found_keywords, append, file_name)
+				sys.exit()
 
 	# 	On keyboard interupt
 	except KeyboardInterrupt:
@@ -114,13 +120,14 @@ def initialize_options(argv):
 	keywords = ['ssh', 'pass', 'key', 'token']
 	file_name = 'log.txt'
 	append = False
+	run_time = 0
 
 	try:
-		opts, args = getopt.getopt(argv,"h:k:o:a")
+		opts, args = getopt.getopt(argv,"h:k:o:at:")
 	except getopt.GetoptError:
 		print 'pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 		sys.exit(2)
-	
+
 	for opt, arg in opts:
 
 		if opt == '-h':
@@ -128,12 +135,18 @@ def initialize_options(argv):
 			sys.exit()
 		elif opt == '-a':
 			append = True
-		elif opt in ("-k", "--keywords"):
+		elif opt == "-k":
 			keywords = set(arg.split(","))
-		elif opt in ("-o", "--outfile"):
+		elif opt == "-o":
 			file_name = arg
+		elif opt == "-t":
+			try:
+				run_time = int(arg)
+			except ValueError:
+				print "Time must be an integer representation of seconds"
+				sys.exit()
 
-	return file_name, keywords, append
+	return file_name, keywords, append, run_time
 
 if __name__ == "__main__":
 	main(sys.argv[1:])

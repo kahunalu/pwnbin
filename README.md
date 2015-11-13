@@ -18,3 +18,4 @@ All pastes are then returned after sending completion signal ctrl+c.
   Optional command:
 
   	-a, Append to file instead of overwriting file.
+  	-t <time in seconds>, Run for time in seconds.
