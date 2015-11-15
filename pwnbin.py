@@ -106,9 +106,9 @@ def find_keywords(raw_url, found_keywords, keywords):
 
 	#	Todo: Add in functionality to rank hit based on how many of the keywords it contains
 	for keyword in keywords:
-		if keyword in paste:
+		if paste.find(keyword) != -1:
 			found_keywords.append("found " + keyword + " in " + raw_url + "\n")
-		break
+			break
 
 	return found_keywords
 
