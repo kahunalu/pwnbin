@@ -13,8 +13,8 @@ def main(argv):
 	root_url 								= 'http://pastebin.com'
 	raw_url 								= 'http://pastebin.com/raw.php?i='
 	start_time								= datetime.datetime.now()
-	file_name, keywords, append, run_time 	= initialize_options(argv)
-	
+	file_name, keywords, append, run_time, number_of_matches, crawlTotal= initialize_options(argv)
+
 	print "\nCrawling %s Press ctrl+c to save file to %s" % (root_url, file_name)
 
 	try:
@@ -37,6 +37,7 @@ def main(argv):
 					#	Add the pastes url to found_keywords if it contains keywords
 					raw_paste = raw_url+paste
 					found_keywords = find_keywords(raw_paste, found_keywords, keywords)
+
 				else:
 
 					#	If keywords are not found enter time_out
@@ -52,7 +53,17 @@ def main(argv):
 			if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
 				write_out(found_keywords, append, file_name)
 				sys.exit()
-
+			#Check if found keywords are equal or greater than number_of_matches
+			elif number_of_matches-len(found_keywords)<=0:
+				sys.stdout.write("\r\nReached matches limit : Found %d matches." % len(found_keywords))
+				write_out(found_keywords, append, file_name)
+				sys.exit()
+			#Check if crawled pastes are equal or greater than crawlTotal
+			elif crawlTotal-len(paste_list)<=0:
+				sys.stdout.write("\r\nReached total crawled pastes limit : Crawled %d pastes." % len(paste_list))
+				write_out(found_keywords, append, file_name)
+				sys.exit()
+				
 	# 	On keyboard interupt
 	except KeyboardInterrupt:
 		write_out(found_keywords, append, file_name)
@@ -121,9 +132,11 @@ def initialize_options(argv):
 	file_name = 'log.txt'
 	append = False
 	run_time = 0
+	number_of_matches=0
+	crawlTotal=0
 
 	try:
-		opts, args = getopt.getopt(argv,"h:k:o:at:")
+		opts, args = getopt.getopt(argv,"h:k:o:at:n:m:")
 	except getopt.GetoptError:
 		print 'pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 		sys.exit(2)
@@ -139,14 +152,28 @@ def initialize_options(argv):
 			keywords = set(arg.split(","))
 		elif opt == "-o":
 			file_name = arg
+		#TODO: -t option doesn't work.
 		elif opt == "-t":
 			try:
 				run_time = int(arg)
 			except ValueError:
-				print "Time must be an integer representation of seconds"
+				print "Time must be an integer representation of seconds."
+				sys.exit()
+		elif opt == '-m':
+			try:
+				number_of_matches = int(arg)
+			except ValueError:
+				print "Number of matches must be an integer."
 				sys.exit()
 
-	return file_name, keywords, append, run_time
+		elif opt == '-n':
+			try:
+				crawlTotal = int(arg)
+			except ValueError:
+				print "Number of total crawled pastes must be an integer."
+				sys.exit()
+
+	return file_name, keywords, append, run_time, number_of_matches, crawlTotal
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
