@@ -13,8 +13,8 @@ def main(argv):
 	root_url 								= 'http://pastebin.com'
 	raw_url 								= 'http://pastebin.com/raw.php?i='
 	start_time								= datetime.datetime.now()
-	file_name, keywords, append, run_time 	= initialize_options(argv)
-	
+	file_name, keywords, append, run_time, match_total, crawl_total = initialize_options(argv)
+
 	print "\nCrawling %s Press ctrl+c to save file to %s" % (root_url, file_name)
 
 	try:
@@ -37,6 +37,7 @@ def main(argv):
 					#	Add the pastes url to found_keywords if it contains keywords
 					raw_paste = raw_url+paste
 					found_keywords = find_keywords(raw_paste, found_keywords, keywords)
+
 				else:
 
 					#	If keywords are not found enter time_out
@@ -50,6 +51,19 @@ def main(argv):
 			sys.stdout.flush()
 
 			if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
+				sys.stdout.write("\n\nReached time limit, Found %d matches." % len(found_keywords))
+				write_out(found_keywords, append, file_name)
+				sys.exit()
+
+			# Exit if surpassed specified match timeout 
+			if match_total and len(found_keywords) >= match_total:
+				sys.stdout.write("\n\nReached match limit, Found %d matches." % len(found_keywords))
+				write_out(found_keywords, append, file_name)
+				sys.exit()
+
+			# Exit if surpassed specified crawl total timeout 
+			if crawl_total and len(paste_list) >= crawl_total:
+				sys.stdout.write("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
 				write_out(found_keywords, append, file_name)
 				sys.exit()
 
@@ -117,13 +131,15 @@ def fetch_page(page):
 	return response.read()
 
 def initialize_options(argv):
-	keywords = ['ssh', 'pass', 'key', 'token']
-	file_name = 'log.txt'
-	append = False
-	run_time = 0
+	keywords 			= ['ssh', 'pass', 'key', 'token']
+	file_name 			= 'log.txt'
+	append 				= False
+	run_time 			= 0
+	match_total			= None
+	crawl_total	 		= None
 
 	try:
-		opts, args = getopt.getopt(argv,"h:k:o:at:")
+		opts, args = getopt.getopt(argv,"h:k:o:t:n:m:a")
 	except getopt.GetoptError:
 		print 'pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>'
 		sys.exit(2)
@@ -143,10 +159,23 @@ def initialize_options(argv):
 			try:
 				run_time = int(arg)
 			except ValueError:
-				print "Time must be an integer representation of seconds"
+				print "Time must be an integer representation of seconds."
+				sys.exit()
+		elif opt == '-m':
+			try:
+				match_total = int(arg)
+			except ValueError:
+				print "Number of matches must be an integer."
 				sys.exit()
 
-	return file_name, keywords, append, run_time
+		elif opt == '-n':
+			try:
+				crawl_total = int(arg)
+			except ValueError:
+				print "Number of total crawled pastes must be an integer."
+				sys.exit()
+
+	return file_name, keywords, append, run_time, match_total, crawl_total
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
