@@ -3,6 +3,8 @@ import urllib2
 import datetime
 import sys, getopt
 from bs4 import BeautifulSoup
+from StringIO import StringIO
+import gzip
 
 def main(argv):
 
@@ -11,7 +13,7 @@ def main(argv):
 	found_keywords							= []
 	paste_list 								= set([])
 	root_url 								= 'http://pastebin.com'
-	raw_url 								= 'http://pastebin.com/raw.php?i='
+	raw_url 								= 'http://pastebin.com/raw/'
 	start_time								= datetime.datetime.now()
 	file_name, keywords, append, run_time, match_total, crawl_total = initialize_options(argv)
 
@@ -128,7 +130,12 @@ def find_keywords(raw_url, found_keywords, keywords):
 
 def fetch_page(page):
 	response = urllib2.urlopen(page)
-	return response.read()
+	if response.info().get('Content-Encoding') == 'gzip':
+		response_buffer = StringIO(response.read())
+		unzipped_content = gzip.GzipFile(fileobj=response_buffer)
+		return unzipped_content.read()
+	else:
+		return response.read()
 
 def initialize_options(argv):
 	keywords 			= ['ssh', 'pass', 'key', 'token']
