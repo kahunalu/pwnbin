@@ -7,12 +7,12 @@ All pastes are then returned after sending completion signal ctrl+c.
 
 
 ## How to use PwnBin
-  
+
   Basic command:
-  
+
     python pwnbin.py -k <keyword1>,"example substring",<keyword2>..... -o <outputfile>
-  
-  Both the keyword and outputfile arguments are optional and default to 
+
+  Both the keyword and outputfile arguments are optional and default to
 
     -k ssh,pass,key,token
     -o log.txt
@@ -23,6 +23,29 @@ All pastes are then returned after sending completion signal ctrl+c.
   	-t <time in seconds>, Run for time in seconds.
   	-n <integer>, Run for number of pastes.
   	-m <integer>, Run for number of matches.
+
+## Support Docker
+
+### Install Docker
+For install docs use the oficial docs: [Docs Oficial](https://docs.docker.com/install/)
+
+### Create image docker
+```sh
+sudo docker build -t "greenmind/pwnbin:1" .
+```
+> "greenmind/pwnbin:1" is name the image, but create you name. example: pwnbin:1
+
+### Using docker
+```sh
+sudo docker container run -it --rm -v "${PWD}:/opt/pwnbin/" "greenmind/pwnbin:1" -k "leak,pass" -o teste2.txt
+```
+
+- sudo (For root permission)
+- docker container run -it --rm (To start the container in interactive mode and remove as soon as it is finished)
+- -v "${PWD}:/opt/pwnbin/" (To connect to the container we create a link because it is isolated from the host, a local link is being created for the /opt/pwnbin directory which is where it is installed)
+- "greenmind/pwnbin:1" (Is the name of the image)
+- -k "leak,pass" (keywords)
+- -o teste2.txt (output)
 
 
 ## License
