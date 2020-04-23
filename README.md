@@ -10,7 +10,7 @@ All pastes are then returned after sending completion signal ctrl+c.
   
   Basic command:
   
-    python pwnbin.py -k <keyword1>,"example substring",<keyword2>..... -o <outputfile>
+    python3 pwnbin.py -k <keyword1>,"example substring",<keyword2>..... -o <outputfile>
   
   Both the keyword and outputfile arguments are optional and default to 
 
