@@ -1,9 +1,20 @@
 import time
-import urllib
+
+try: 
+    from urllib.request import urlopen
+    from urllib.error import HTTPError, URLError
+except ImportError: 
+    from urllib2 import urlopen, HTTPError, URLError
+
 import datetime
 import sys, getopt
 from bs4 import BeautifulSoup
-from io import StringIO
+
+try: 
+    from io import StringIO
+except ImportError: 
+    from StringIO import StringIO
+
 import gzip
 
 def main(argv):
@@ -74,7 +85,7 @@ def main(argv):
         write_out(found_keywords, append, file_name)
 
     #    If http request returns an error and 
-    except urllib.error.HTTPError as err:
+    except HTTPError as err:
         if err.code == 404:
             print("\n\nError 404: Pastes not found!")
         elif err.code == 403:
@@ -84,7 +95,7 @@ def main(argv):
         write_out(found_keywords, append, file_name)
 
     #    If http request returns an error and 
-    except urllib.error.URLError as err:
+    except URLError as err:
         print ("\n\nYou\'re on your own on this one! Error code ", err)
         write_out(found_keywords, append, file_name)
 
@@ -128,7 +139,7 @@ def find_keywords(raw_url, found_keywords, keywords):
     return found_keywords
 
 def fetch_page(page):
-    response = urllib.request.urlopen(page)
+    response = urlopen(page)
     if response.info().get('Content-Encoding') == 'gzip':
         response_buffer = StringIO(response.read())
         unzipped_content = gzip.GzipFile(fileobj=response_buffer)
