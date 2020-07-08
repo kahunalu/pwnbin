@@ -16,17 +16,19 @@ except ImportError:
     from StringIO import StringIO
 
 import gzip
+from configparser import ConfigParser
 
 def main(argv):
 
     length = 0
     time_out = False
     found_keywords = []
+    mailed_keywords=[]
     paste_list = set([])
     root_url = 'http://pastebin.com'
     raw_url = 'http://pastebin.com/raw/'
     start_time = datetime.datetime.now()
-    file_name, keywords, append, run_time, match_total, crawl_total = initialize_options(argv)
+    file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails = initialize_options(argv)
 
     print("\nCrawling %s Press ctrl+c to save file to %s" % (root_url, file_name))
 
@@ -60,8 +62,14 @@ def main(argv):
             if time_out:
                 time.sleep(2)
 
-            sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
+            sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d\n" % (len(paste_list), len(found_keywords)))
             sys.stdout.flush()
+            
+            # Determined list of new found keywords and send them
+            new_keywords = [item for item in found_keywords if item not in mailed_keywords]
+            if len(new_keywords) and emails:
+                mail_paste(new_keywords, mail_conf, emails)
+                mailed_keywords.extend(new_keywords)
 
             if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
                 sys.stdout.write("\n\nReached time limit, Found %d matches." % len(found_keywords))
@@ -154,17 +162,20 @@ def initialize_options(argv):
     run_time = 0
     match_total = None
     crawl_total = None
+    mail_conf = None
+    emails = None
 
     try:
-        opts, args = getopt.getopt(argv,"h:k:o:t:n:m:a")
+        opts, args = getopt.getopt(argv,"h:k:o:t:n:m:ac:e:")
     except getopt.GetoptError:
-        print('pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>')
+        print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/kahunalu/pwnbin for more informations.')
         sys.exit(2)
 
     for opt, arg in opts:
 
         if opt == '-h':
-            print('pwnbin.py -k <keyword1>,<keyword2>,<keyword3>..... -o <outputfile>')
+            print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/kahunalu/pwnbin for more informations.')
+
             sys.exit()
         elif opt == '-a':
             append = True
@@ -192,7 +203,23 @@ def initialize_options(argv):
                 print ("Number of total crawled pastes must be an integer.")
                 sys.exit()
 
-    return file_name, keywords, append, run_time, match_total, crawl_total
+        elif opt == "-c":
+            config=ConfigParser()
+            config.read_file(open(arg, 'r'))
+            mail_conf=dict(config['pwnbin-mail-alerts'])
+
+        elif opt == "-e":
+            emails = list(arg.split(","))
+
+    if emails and not mail_conf:
+        raise EnvironmentError("You must set mail configuration with -c <file> to be send paste alerts by emails.")
+
+    return file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails
+
+def mail_paste(found_keywords, mail_conf, emails):
+    print("Would send an email alert to %s for paste %s"%(emails, found_keywords))
+    print("Mail config : %s"%mail_conf)
+    # TODO
 
 if __name__ == "__main__":
     main(sys.argv[1:])
