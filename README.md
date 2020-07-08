@@ -2,8 +2,9 @@
 
 
 ## What is PwnBin
-  PwnBin is a webcrawler which searches public pastebins for specified keywords.
+PwnBin is a webcrawler which searches public pastebins for specified keywords.
 All pastes are then returned after sending completion signal ctrl+c.
+Emails alerts can be configured and are sent when finishing program main loop
 
 
 ## How to use PwnBin
@@ -23,6 +24,8 @@ All pastes are then returned after sending completion signal ctrl+c.
   	-t <time in seconds>, Run for time in seconds.
   	-n <integer>, Run for number of pastes.
   	-m <integer>, Run for number of matches.
+    -c <filepath>, Mail server configuration file
+    -e <email1>,<email2>... Receipients to receive mail alerts
 
 
 ## License
