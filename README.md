@@ -28,6 +28,52 @@ Email alerts can be configured and are sent when finishing program main loop.
     -e <email1>,<email2>... Mail alerts recipients
 
 
+## Install PwnBin as a linux service (systemctl)
+
+Still need some tweaks to be 403 proof...
+
+Create and configure the service file `/lib/systemd/system/pwnbin.service`
+```bash
+vim /lib/systemd/system/pwnbin.service
+```
+Adjust `ExecStart` and `User` in the following template service file. 
+Do not use `-t`, `-n` or `-m` flags, the goal is to have the script run for ever.  
+
+```
+[Unit]
+Description=pwnbin
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=300
+ExecStart=/usr/bin/python3 /path/to/pwnbin/pwnbin.py -k keyword1,keyword2 -c /path/to/pwnbin/mail.conf -e me@gmail.com,you@gmail.com
+User=user
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable the service to start on boot
+```
+systemctl daemon-reload
+systemctl enable pwnbin.service
+```
+
+The service can be started/stopped with the following commands:
+```
+systemctl start pwnbin
+systemctl stop pwnbin
+```  
+
+Follow logs
+```
+journalctl -u pwnbin -f
+```
+[More infos on systemctl](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system_administrators_guide/sect-managing_services_with_systemd-unit_files) 
+
+
 ## License
 
 The MIT License (MIT)						 Copyright (c) 2015 Luke Mclaren
