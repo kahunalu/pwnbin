@@ -17,6 +17,10 @@ except ImportError:
 
 import gzip
 from configparser import ConfigParser
+import smtplib
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 def main(argv):
 
@@ -30,7 +34,7 @@ def main(argv):
     start_time = datetime.datetime.now()
     file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails = initialize_options(argv)
 
-    print("\nCrawling %s Press ctrl+c to save file to %s" % (root_url, file_name))
+    print("\nCrawling %s Press Ctrl+C to save file to %s" % (root_url, file_name))
 
     try:
         # Continually loop until user stops execution
@@ -62,29 +66,29 @@ def main(argv):
             if time_out:
                 time.sleep(2)
 
-            sys.stdout.write("\rCrawled total of %d Pastes, Keyword matches %d\n" % (len(paste_list), len(found_keywords)))
-            sys.stdout.flush()
+            print("\rCrawled total of %d Pastes, Keyword matches %d\n" % (len(paste_list), len(found_keywords)))
             
-            # Determined list of new found keywords and send them
+            # Determine list of new found keywords and send them by email
             new_keywords = [item for item in found_keywords if item not in mailed_keywords]
             if len(new_keywords) and emails:
+
                 mail_paste(new_keywords, mail_conf, emails)
                 mailed_keywords.extend(new_keywords)
 
             if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
-                sys.stdout.write("\n\nReached time limit, Found %d matches." % len(found_keywords))
+                print("\n\nReached time limit, Found %d matches." % len(found_keywords))
                 write_out(found_keywords, append, file_name)
                 sys.exit()
 
             # Exit if surpassed specified match timeout 
             if match_total and len(found_keywords) >= match_total:
-                sys.stdout.write("\n\nReached match limit, Found %d matches." % len(found_keywords))
+                print("\n\nReached match limit, Found %d matches." % len(found_keywords))
                 write_out(found_keywords, append, file_name)
                 sys.exit()
 
             # Exit if surpassed specified crawl total timeout 
             if crawl_total and len(paste_list) >= crawl_total:
-                sys.stdout.write("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
+                print("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
                 write_out(found_keywords, append, file_name)
                 sys.exit()
 
@@ -212,14 +216,30 @@ def initialize_options(argv):
             emails = list(arg.split(","))
 
     if emails and not mail_conf:
-        raise EnvironmentError("You must set mail configuration with -c <file> to be send paste alerts by emails.")
+        print("You must set mail configuration with -c <file> to send paste alerts by emails.")
+        sys.exit()
 
     return file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails
 
 def mail_paste(found_keywords, mail_conf, emails):
-    print("Would send an email alert to %s for paste %s"%(emails, found_keywords))
-    print("Mail config : %s"%mail_conf)
-    # TODO
+    print("Sending an email alert to %s for new paste(s) %s"%(emails, found_keywords))
+
+    # Building message
+    message = MIMEMultipart("html")
+    message['Subject'] = 'pwnbin ALERT : keyword found in new paste'
+    message['From'] = mail_conf['fromaddr']
+    message['To'] = ','.join(emails)
+    body = '\n\n'.join(found_keywords)
+    body += '\n\n\nThis is an automated message, please do not reply.\n\n\n--\npwnbin'
+    message.attach(MIMEText(body))
+
+    # Sendmail
+    server = smtplib.SMTP(mail_conf['smtp_server'])
+    server.ehlo_or_helo_if_needed()
+    if mail_conf['smtp_ssl'] : server.starttls()
+    if mail_conf['smtp_auth'] : server.login(mail_conf['smtp_username'], mail_conf['smtp_password'] )
+    server.sendmail(mail_conf['from_email'] , ','.join(emails), message.as_string())
+    server.quit()
 
 if __name__ == "__main__":
     main(sys.argv[1:])

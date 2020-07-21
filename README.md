@@ -2,14 +2,14 @@
 
 
 ## What is PwnBin
-PwnBin is a webcrawler which searches public pastebins for specified keywords.
-All pastes are then returned after sending completion signal ctrl+c.
-Emails alerts can be configured and are sent when finishing program main loop
+PwnBin is a webcrawler which searches public pastebins for specified keywords.  
+All pastes are then wrote to file after program finished with predefined condition or sending completion signal Ctrl+C.  
+Email alerts can be configured and are sent when finishing program main loop.  
 
 
 ## How to use PwnBin
   
-  Basic command:
+  Basic usage:
   
     python3 pwnbin.py -k <keyword1>,"example substring",<keyword2>..... -o <outputfile>
   
@@ -24,8 +24,8 @@ Emails alerts can be configured and are sent when finishing program main loop
   	-t <time in seconds>, Run for time in seconds.
   	-n <integer>, Run for number of pastes.
   	-m <integer>, Run for number of matches.
-    -c <filepath>, Mail server configuration file
-    -e <email1>,<email2>... Receipients to receive mail alerts
+    -c <filepath>, Mail server configuration file (see `mail.conf`)
+    -e <email1>,<email2>... Mail alerts recipientss
 
 
 ## License
