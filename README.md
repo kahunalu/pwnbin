@@ -25,7 +25,7 @@ Email alerts can be configured and are sent when finishing program main loop.
   	-n <integer>, Run for number of pastes.
   	-m <integer>, Run for number of matches.
     -c <filepath>, Mail server configuration file (see mail.conf)
-    -e <email1>,<email2>... Mail alerts recipientss
+    -e <email1>,<email2>... Mail alerts recipients
 
 
 ## License
