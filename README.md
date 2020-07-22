@@ -26,6 +26,9 @@ Email alerts can be configured and are sent when finishing program main loop.
   	-m <integer>, Run for number of matches.
     -c <filepath>, Mail server configuration file (see mail.conf)
     -e <email1>,<email2>... Mail alerts recipients
+    -w <time in seconds>, Main loop wait time
+    -s, Use selenium to emulate web browser and avoid 403. chromedriver must be in your PATH, see https://sites.google.com/a/chromium.org/chromedriver/. For Raspberry Pi: Download and install armv7l version from https://github.com/electron/electron/releases/.
+    -v, Use virtual display. Implies -s. Require Xvbf, see https://stackoverflow.com/questions/21665914/installing-and-configuring-xvfb.
 
 
 ## Install PwnBin as a linux service (systemctl)
@@ -48,7 +51,7 @@ After=network.target
 Type=simple
 Restart=always
 RestartSec=300
-ExecStart=/usr/bin/python3 /path/to/pwnbin/pwnbin.py -k keyword1,keyword2 -c /path/to/pwnbin/mail.conf -e me@gmail.com,you@gmail.com
+ExecStart=/usr/bin/python3 /path/to/pwnbin/pwnbin.py -k <keyword1>,<keyword2> -c /path/to/pwnbin/mail.conf -e me@gmail.com,you@gmail.com
 User=user
 
 [Install]
