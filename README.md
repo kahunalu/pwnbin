@@ -37,7 +37,7 @@ Still need some tweaks to be 403 proof...
 
 Create and configure the service file `/lib/systemd/system/pwnbin.service`
 ```bash
-vim /lib/systemd/system/pwnbin.service
+nano /lib/systemd/system/pwnbin.service
 ```
 Adjust `ExecStart` and `User` in the following template service file. 
 Do not use `-t`, `-n` or `-m` flags, the goal is to have the script run for ever.  
