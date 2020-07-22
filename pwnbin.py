@@ -50,6 +50,7 @@ def main(argv):
     if use_selenium:
         import selenium
         from selenium import webdriver
+        from selenium.webdriver.common.by import By
         print("Starting browser")
         # Avoid error https://bugs.chromium.org/p/chromedriver/issues/detail?id=2473
         options = webdriver.ChromeOptions()
@@ -59,7 +60,7 @@ def main(argv):
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(60)
 
-    print("Crawling %s Press Ctrl+C to quit and save logfile to %s" % (root_url, file_name))
+    print("Crawling PasteBin... Press Ctrl+C to quit and save logfile to %s" % (file_name))
 
     try:
         # Continually loop until user stops execution
@@ -80,7 +81,7 @@ def main(argv):
                     
                     #    Add the pastes url to found_keywords if it contains keywords
                     raw_paste = raw_url+paste
-                    found_keywords = find_keywords(raw_paste, found_keywords, keywords)       
+                    found_keywords = find_keywords(raw_paste, found_keywords, keywords, use_selenium, driver)       
 
                 time.sleep(2)     
 
@@ -166,8 +167,8 @@ def find_new_pastes(root_html):
 
     return new_pastes
 
-def find_keywords(raw_url, found_keywords, keywords):
-    paste = fetch_page(raw_url, use_selenium=False)
+def find_keywords(raw_url, found_keywords, keywords, use_selenium=False, driver=None):
+    paste = fetch_page(raw_url, use_selenium, driver, raw=True)
     #    Todo: Add in functionality to rank hit based on how many of the keywords it contains
     for keyword in keywords:
         if paste.find(keyword.encode()) != -1:
@@ -176,13 +177,17 @@ def find_keywords(raw_url, found_keywords, keywords):
 
     return found_keywords
 
-def fetch_page(page, use_selenium, driver=None):
+def fetch_page(page, use_selenium, driver=None, raw=False):
+    print("Fetching %s"%(page))
     if use_selenium and driver:
         driver.get(page)
         html = driver.page_source
         if 'complete a CAPTCHA' in html:
             raise HTTPError(page, 403, "Pastebin is asking for a CAPTCHA", None, None)
-        return str(html)
+        if raw:
+            return driver.find_element_by_tag_name('body').text.encode()
+        else:
+            return html
 
     else:
         response = urlopen(page)
