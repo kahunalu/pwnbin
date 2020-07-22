@@ -80,7 +80,9 @@ def main(argv):
                     
                     #    Add the pastes url to found_keywords if it contains keywords
                     raw_paste = raw_url+paste
-                    found_keywords = find_keywords(raw_paste, found_keywords, keywords)            
+                    found_keywords = find_keywords(raw_paste, found_keywords, keywords)       
+
+                time.sleep(2)     
 
             print("Crawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
             
