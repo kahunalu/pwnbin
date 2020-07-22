@@ -187,6 +187,8 @@ def fetch_page(page, use_selenium, driver=None):
         html = driver.page_source
         if 'complete a CAPTCHA' in html:
             raise HTTPError(page, 403, "Pastebin is asking for a CAPTCHA", None, None)
+        return str(html)
+
     else:
         response = urlopen(page)
         if response.info().get('Content-Encoding') == 'gzip':
