@@ -50,7 +50,7 @@ def main(argv):
     if use_selenium:
         import selenium
         from selenium import webdriver
-
+        print("Starting browser")
         # Avoid error https://bugs.chromium.org/p/chromedriver/issues/detail?id=2473
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
@@ -58,14 +58,8 @@ def main(argv):
 
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(60)
-        
-        # Minimize window if no virtual display
-        # if not display:
-        #     try: driver.minimize_window()
-        #     # Can fail if running with a virtual display
-        #     except selenium.common.exceptions.WebDriverException: pass
 
-    print("\nCrawling %s Press Ctrl+C to save file to %s" % (root_url, file_name))
+    print("Crawling %s Press Ctrl+C to quit and save logfile to %s" % (root_url, file_name))
 
     try:
         # Continually loop until user stops execution
@@ -88,7 +82,7 @@ def main(argv):
                     raw_paste = raw_url+paste
                     found_keywords = find_keywords(raw_paste, found_keywords, keywords)            
 
-            print("\rCrawled total of %d Pastes, Keyword matches %d\n" % (len(paste_list), len(found_keywords)))
+            print("Crawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
             
             # Determine list of new found keywords and send them by email
             new_keywords = [item for item in found_keywords if item not in mailed_keywords]
@@ -113,7 +107,8 @@ def main(argv):
                 print("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
                 write_out(found_keywords, append, file_name)
                 sys.exit()
-
+            
+            print("Sleeping %s seconds"%(main_loop_wait_time))
             time.sleep(main_loop_wait_time)
 
     #     On keyboard interupt
@@ -136,9 +131,7 @@ def main(argv):
         write_out(found_keywords, append, file_name)
 
     finally:
-
         if driver: 
-            print("Stopping browser")
             driver.quit()
             if display: 
                 display.stop()
@@ -277,7 +270,7 @@ def initialize_options(argv):
     return file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails, main_loop_wait_time, use_selenium, use_virtual_display
 
 def mail_paste(found_keywords, mail_conf, emails):
-    print("Sending an email alert to %s for new paste(s) %s"%(emails, found_keywords))
+    print("Sending an email alert to %s for new paste %s"%(emails, found_keywords))
 
     # Building message
     message = MIMEMultipart("html")
@@ -285,7 +278,7 @@ def mail_paste(found_keywords, mail_conf, emails):
     message['From'] = mail_conf['fromaddr']
     message['To'] = ','.join(emails)
     body = '\n\n'.join(found_keywords)
-    body += '\n\n\nThis is an automated message, please do not reply.\n\n\n--\npwnbin'
+    body += '\n\nThis is an automated message, please do not reply.\n--\npwnbin'
     message.attach(MIMEText(body))
 
     # Sendmail
