@@ -126,19 +126,24 @@ def main(argv):
     #     On keyboard interupt
     except KeyboardInterrupt:
         print("Interrupted")
-
+        sys.exit(1)
+        
     #    If http request returns an error and 
     except HTTPError as err:
         if err.code == 404:
             print("\n\nError 404: Pastes not found!")
+            sys.exit(1)
         elif err.code == 403:
             print("\n\nError 403: Pastebin is mad at you!")
+            sys.exit(1)
         else:
-            print("\n\nYou\'re on your own on this one! Error code ", err.code)
+            print("\n\nYou\'re on your own on this one! Error code %s"%err.code)
+            sys.exit(1)
 
     #    If http request returns an error and 
     except URLError as err:
-        print ("\n\nYou\'re on your own on this one! Error code ", err)
+        print ("\n\nYou\'re on your own on this one! Error %s"%err)
+        sys.exit(1)
 
     finally:
         print("Exiting")
