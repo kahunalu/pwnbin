@@ -137,9 +137,6 @@ def main(argv):
     except URLError as err:
         print ("\n\nYou\'re on your own on this one! Error code ", err)
 
-    except ValueError as err:
-        print(err)
-
     finally:
         print("Exiting")
         if driver: 
@@ -171,7 +168,7 @@ def find_new_pastes(root_html):
 
     # Fixed AttributeError: 'NoneType' object has no attribute 'find'
     if not div:
-        raise ValueError("Could not find %s in root page HTML.\nText: %s"%(new_pastes_div_match, root_html.find('body').getText()))
+        raise ValueError("Could not find %s in root page HTML.\nText: %s\nSource: %s"%(new_pastes_div_match, root_html.find('body').getText(), root_html))
 
     ul = div.find('ul', {'class': 'right_menu'})
     
@@ -197,7 +194,7 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
         print("Fetching %s with Selenium"%(page))
         driver.get(page)
         html = driver.page_source
-        if 'complete a CAPTCHA' in html:
+        if driver.find_element_by_id("challenge-form"):
             raise ValueError("Pastebin is asking for a CAPTCHA!")
         if raw:
             return driver.find_element_by_tag_name('body').text.encode()
