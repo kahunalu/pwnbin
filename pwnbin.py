@@ -92,7 +92,7 @@ def main(argv):
                 time.sleep(2)     
 
             print("Crawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
-            
+            print('\n'.join(found_keywords))
             # Write paste info to file
             write_out(found_keywords, append, file_name)
 
@@ -103,17 +103,17 @@ def main(argv):
                 mail_paste(new_keywords, mail_conf, emails)
                 mailed_keywords.extend(new_keywords)
 
-            if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
+            if run_time!=None and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
                 print("\n\nReached time limit, Found %d matches." % len(found_keywords))
                 sys.exit()
 
             # Exit if surpassed specified match timeout 
-            if match_total and len(found_keywords) >= match_total:
+            if match_total!=None and len(found_keywords) >= match_total:
                 print("\n\nReached match limit, Found %d matches." % len(found_keywords))
                 sys.exit()
 
             # Exit if surpassed specified crawl total timeout 
-            if crawl_total and len(paste_list) >= crawl_total:
+            if crawl_total!=None and len(paste_list) >= crawl_total:
                 print("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
                 sys.exit()
             
@@ -158,8 +158,6 @@ def write_out(found_keywords, append, file_name):
         for paste in found_keywords:
             f.write(paste)
         print ("\n")
-    else:
-        print ("\n\nNo relevant pastes found, exiting\n\n")
 
 def find_new_pastes(root_html):
     new_pastes = []
@@ -210,7 +208,7 @@ def initialize_options(argv):
     keywords = ['ssh', 'pass', 'key', 'token']
     file_name = 'log.txt'
     append = False
-    run_time = 0
+    run_time = None
     match_total = None
     crawl_total = None
     mail_conf = None
