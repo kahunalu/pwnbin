@@ -66,7 +66,7 @@ def main(argv):
             # Can fail if running with a virtual display
             except selenium.common.exceptions.WebDriverException: pass
 
-    print("Crawling PasteBin... Pastes are saved logfile to %s" % (file_name))
+    print("Crawling PasteBin... Pastes are saved to logfile %s" % (file_name))
 
     try:
         # Continually loop until user stops execution
@@ -136,8 +136,12 @@ def main(argv):
     #    If http request returns an error and 
     except URLError as err:
         print ("\n\nYou\'re on your own on this one! Error code ", err)
-        
+
+    except ValueError as err:
+        print(err)
+
     finally:
+        print("Exiting")
         if driver: 
             driver.quit()
             if display: 
@@ -162,7 +166,13 @@ def write_out(found_keywords, append, file_name):
 def find_new_pastes(root_html):
     new_pastes = []
 
-    div = root_html.find('div', {'id': 'menu_2'})
+    new_pastes_div_match={'id': 'menu_2'}
+    div = root_html.find('div', new_pastes_div_match)
+
+    # Fixed AttributeError: 'NoneType' object has no attribute 'find'
+    if not div:
+        raise ValueError("Could not find %s in root page HTML.\nText: %s"%(new_pastes_div_match, root_html.find('body').getText()))
+
     ul = div.find('ul', {'class': 'right_menu'})
     
     for li in ul.findChildren():
@@ -188,7 +198,7 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
         driver.get(page)
         html = driver.page_source
         if 'complete a CAPTCHA' in html:
-            raise HTTPError(page, 403, "Pastebin is asking for a CAPTCHA", None, None)
+            raise ValueError("Pastebin is asking for a CAPTCHA!")
         if raw:
             return driver.find_element_by_tag_name('body').text.encode()
         else:
