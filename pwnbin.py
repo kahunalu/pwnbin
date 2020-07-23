@@ -158,8 +158,6 @@ def write_out(found_keywords, append, file_name):
         for paste in found_keywords:
             f.write(paste)
         print ("\n")
-    else:
-        print ("\n\nNo relevant pastes found, exiting\n\n")
 
 def find_new_pastes(root_html):
     new_pastes = []
