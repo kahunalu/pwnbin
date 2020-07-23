@@ -76,7 +76,7 @@ After=network.target
 Type=simple
 Restart=always
 RestartSec=3600
-ExecStart=/usr/bin/python3 /path/to/pwnbin/pwnbin.py -k <keyword1>,<keyword2> -c /path/to/pwnbin/mail.conf -e me@gmail.com,you@gmail.com
+ExecStart=/usr/bin/python3 /path/to/pwnbin/pwnbin.py -k <keyword1>,<keyword2> -o /path/to/pwnbin/log.txt -c /path/to/pwnbin/mail.conf -e me@gmail.com,you@gmail.com
 User=user
 
 [Install]
