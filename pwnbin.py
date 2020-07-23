@@ -60,7 +60,13 @@ def main(argv):
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(60)
 
-    print("Crawling PasteBin... Press Ctrl+C to quit and save logfile to %s" % (file_name))
+        # Minimize window if no virtual display
+        if not display:
+            try: driver.minimize_window()
+            # Can fail if running with a virtual display
+            except selenium.common.exceptions.WebDriverException: pass
+
+    print("Crawling PasteBin... Pastes are saved logfile to %s" % (file_name))
 
     try:
         # Continually loop until user stops execution
@@ -87,28 +93,28 @@ def main(argv):
 
             print("Crawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
             
+            # Write paste info to file
+            write_out(found_keywords, append, file_name)
+
             # Determine list of new found keywords and send them by email
             new_keywords = [item for item in found_keywords if item not in mailed_keywords]
             if len(new_keywords) and emails:
-
+                # Sendmail
                 mail_paste(new_keywords, mail_conf, emails)
                 mailed_keywords.extend(new_keywords)
 
             if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
                 print("\n\nReached time limit, Found %d matches." % len(found_keywords))
-                write_out(found_keywords, append, file_name)
                 sys.exit()
 
             # Exit if surpassed specified match timeout 
             if match_total and len(found_keywords) >= match_total:
                 print("\n\nReached match limit, Found %d matches." % len(found_keywords))
-                write_out(found_keywords, append, file_name)
                 sys.exit()
 
             # Exit if surpassed specified crawl total timeout 
             if crawl_total and len(paste_list) >= crawl_total:
                 print("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
-                write_out(found_keywords, append, file_name)
                 sys.exit()
             
             print("Sleeping %s seconds"%(main_loop_wait_time))
@@ -116,7 +122,7 @@ def main(argv):
 
     #     On keyboard interupt
     except KeyboardInterrupt:
-        write_out(found_keywords, append, file_name)
+        print("Interrupted")
 
     #    If http request returns an error and 
     except HTTPError as err:
@@ -126,18 +132,18 @@ def main(argv):
             print("\n\nError 403: Pastebin is mad at you!")
         else:
             print("\n\nYou\'re on your own on this one! Error code ", err.code)
-        write_out(found_keywords, append, file_name)
 
     #    If http request returns an error and 
     except URLError as err:
         print ("\n\nYou\'re on your own on this one! Error code ", err)
-        write_out(found_keywords, append, file_name)
-
+        
     finally:
         if driver: 
             driver.quit()
             if display: 
                 display.stop()
+        # Write pastes to file
+        write_out(found_keywords, append, file_name)
 
 def write_out(found_keywords, append, file_name):
     #     if pastes with keywords have been found
@@ -177,9 +183,10 @@ def find_keywords(raw_url, found_keywords, keywords, use_selenium=False, driver=
 
     return found_keywords
 
-def fetch_page(page, use_selenium, driver=None, raw=False):
-    print("Fetching %s"%(page))
+def fetch_page(page, use_selenium=False, driver=None, raw=False):
+    
     if use_selenium and driver:
+        print("Fetching %s with Selenium"%(page))
         driver.get(page)
         html = driver.page_source
         if 'complete a CAPTCHA' in html:
@@ -190,6 +197,7 @@ def fetch_page(page, use_selenium, driver=None, raw=False):
             return html
 
     else:
+        print("Fetching %s"%(page))
         response = urlopen(page)
         if response.info().get('Content-Encoding') == 'gzip':
             response_buffer = StringIO(response.read())
@@ -207,7 +215,7 @@ def initialize_options(argv):
     crawl_total = None
     mail_conf = None
     emails = None
-    main_loop_wait_time = 2
+    main_loop_wait_time = 30
     use_selenium = False
     use_virtual_display = False
 
