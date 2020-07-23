@@ -21,6 +21,7 @@ import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import platform
 
 def main(argv):
 
@@ -32,16 +33,47 @@ def main(argv):
     root_url = 'http://pastebin.com'
     raw_url = 'http://pastebin.com/raw/'
     start_time = datetime.datetime.now()
-    file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails = initialize_options(argv)
+    file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails, main_loop_wait_time, use_selenium, use_virtual_display = initialize_options(argv)
 
-    print("\nCrawling %s Press Ctrl+C to save file to %s" % (root_url, file_name))
+    driver = None
+    display = None
+
+    if use_virtual_display:
+        from pyvirtualdisplay import Display
+        if platform.system() == "Linux" :
+            print("Starting virtual display")
+            display = Display(visible=0, size=(1920, 1200))  
+            display.start()
+        else:
+            print("Virtual display is only supported on Linuxes because it uses xvfb, continuing with real display...")
+    
+    if use_selenium:
+        import selenium
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+        print("Starting browser")
+        # Avoid error https://bugs.chromium.org/p/chromedriver/issues/detail?id=2473
+        options = webdriver.ChromeOptions()
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=options)
+        driver.set_page_load_timeout(60)
+
+        # Minimize window if no virtual display
+        if not display:
+            try: driver.minimize_window()
+            # Can fail if running with a virtual display
+            except selenium.common.exceptions.WebDriverException: pass
+
+    print("Crawling PasteBin... Pastes are saved logfile to %s" % (file_name))
 
     try:
         # Continually loop until user stops execution
         while True:
 
             #    Get pastebin home page html
-            root_html = BeautifulSoup(fetch_page(root_url), 'html.parser')
+            root_html = BeautifulSoup(fetch_page(root_url, use_selenium, driver), 'html.parser')
             
             #    For each paste in the public pastes section of home page
             for paste in find_new_pastes(root_html):
@@ -55,46 +87,42 @@ def main(argv):
                     
                     #    Add the pastes url to found_keywords if it contains keywords
                     raw_paste = raw_url+paste
-                    found_keywords = find_keywords(raw_paste, found_keywords, keywords)
+                    found_keywords = find_keywords(raw_paste, found_keywords, keywords, use_selenium, driver)       
 
-                else:
+                time.sleep(2)     
 
-                    #    If keywords are not found enter time_out
-                    time_out = True
-
-            # Enter the timeout if no new pastes have been found
-            if time_out:
-                time.sleep(2)
-
-            print("\rCrawled total of %d Pastes, Keyword matches %d\n" % (len(paste_list), len(found_keywords)))
+            print("Crawled total of %d Pastes, Keyword matches %d" % (len(paste_list), len(found_keywords)))
             
+            # Write paste info to file
+            write_out(found_keywords, append, file_name)
+
             # Determine list of new found keywords and send them by email
             new_keywords = [item for item in found_keywords if item not in mailed_keywords]
             if len(new_keywords) and emails:
-
+                # Sendmail
                 mail_paste(new_keywords, mail_conf, emails)
                 mailed_keywords.extend(new_keywords)
 
             if run_time and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
                 print("\n\nReached time limit, Found %d matches." % len(found_keywords))
-                write_out(found_keywords, append, file_name)
                 sys.exit()
 
             # Exit if surpassed specified match timeout 
             if match_total and len(found_keywords) >= match_total:
                 print("\n\nReached match limit, Found %d matches." % len(found_keywords))
-                write_out(found_keywords, append, file_name)
                 sys.exit()
 
             # Exit if surpassed specified crawl total timeout 
             if crawl_total and len(paste_list) >= crawl_total:
                 print("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
-                write_out(found_keywords, append, file_name)
                 sys.exit()
+            
+            print("Sleeping %s seconds"%(main_loop_wait_time))
+            time.sleep(main_loop_wait_time)
 
     #     On keyboard interupt
     except KeyboardInterrupt:
-        write_out(found_keywords, append, file_name)
+        print("Interrupted")
 
     #    If http request returns an error and 
     except HTTPError as err:
@@ -104,13 +132,18 @@ def main(argv):
             print("\n\nError 403: Pastebin is mad at you!")
         else:
             print("\n\nYou\'re on your own on this one! Error code ", err.code)
-        write_out(found_keywords, append, file_name)
 
     #    If http request returns an error and 
     except URLError as err:
         print ("\n\nYou\'re on your own on this one! Error code ", err)
+        
+    finally:
+        if driver: 
+            driver.quit()
+            if display: 
+                display.stop()
+        # Write pastes to file
         write_out(found_keywords, append, file_name)
-
 
 def write_out(found_keywords, append, file_name):
     #     if pastes with keywords have been found
@@ -140,8 +173,8 @@ def find_new_pastes(root_html):
 
     return new_pastes
 
-def find_keywords(raw_url, found_keywords, keywords):
-    paste = fetch_page(raw_url)
+def find_keywords(raw_url, found_keywords, keywords, use_selenium=False, driver=None):
+    paste = fetch_page(raw_url, use_selenium, driver, raw=True)
     #    Todo: Add in functionality to rank hit based on how many of the keywords it contains
     for keyword in keywords:
         if paste.find(keyword.encode()) != -1:
@@ -150,14 +183,28 @@ def find_keywords(raw_url, found_keywords, keywords):
 
     return found_keywords
 
-def fetch_page(page):
-    response = urlopen(page)
-    if response.info().get('Content-Encoding') == 'gzip':
-        response_buffer = StringIO(response.read())
-        unzipped_content = gzip.GzipFile(fileobj=response_buffer)
-        return unzipped_content.read()
+def fetch_page(page, use_selenium=False, driver=None, raw=False):
+    
+    if use_selenium and driver:
+        print("Fetching %s with Selenium"%(page))
+        driver.get(page)
+        html = driver.page_source
+        if 'complete a CAPTCHA' in html:
+            raise HTTPError(page, 403, "Pastebin is asking for a CAPTCHA", None, None)
+        if raw:
+            return driver.find_element_by_tag_name('body').text.encode()
+        else:
+            return html
+
     else:
-        return response.read()
+        print("Fetching %s"%(page))
+        response = urlopen(page)
+        if response.info().get('Content-Encoding') == 'gzip':
+            response_buffer = StringIO(response.read())
+            unzipped_content = gzip.GzipFile(fileobj=response_buffer)
+            return unzipped_content.read()
+        else:
+            return response.read()
 
 def initialize_options(argv):
     keywords = ['ssh', 'pass', 'key', 'token']
@@ -168,9 +215,12 @@ def initialize_options(argv):
     crawl_total = None
     mail_conf = None
     emails = None
+    main_loop_wait_time = 30
+    use_selenium = False
+    use_virtual_display = False
 
     try:
-        opts, args = getopt.getopt(argv,"h:k:o:t:n:m:ac:e:")
+        opts, args = getopt.getopt(argv,"h:k:o:t:n:m:ac:e:w:sv")
     except getopt.GetoptError:
         print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/kahunalu/pwnbin for more informations.')
         sys.exit(2)
@@ -179,14 +229,17 @@ def initialize_options(argv):
 
         if opt == '-h':
             print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/kahunalu/pwnbin for more informations.')
-
             sys.exit()
+
         elif opt == '-a':
             append = True
+
         elif opt == "-k":
             keywords = set(arg.split(","))
+
         elif opt == "-o":
             file_name = arg
+
         elif opt == "-t":
             try:
                 run_time = int(arg)
@@ -214,15 +267,25 @@ def initialize_options(argv):
 
         elif opt == "-e":
             emails = list(arg.split(","))
+        
+        elif opt == "-w":
+            main_loop_wait_time = int(arg)
+
+        elif opt == "-s":
+            use_selenium = True
+
+        elif opt == "-v":
+            use_virtual_display = True
+            use_selenium = True
 
     if emails and not mail_conf:
         print("You must set mail configuration with -c <file> to send paste alerts by emails.")
         sys.exit()
 
-    return file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails
+    return file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails, main_loop_wait_time, use_selenium, use_virtual_display
 
 def mail_paste(found_keywords, mail_conf, emails):
-    print("Sending an email alert to %s for new paste(s) %s"%(emails, found_keywords))
+    print("Sending an email alert to %s for new paste %s"%(emails, found_keywords))
 
     # Building message
     message = MIMEMultipart("html")
@@ -230,7 +293,7 @@ def mail_paste(found_keywords, mail_conf, emails):
     message['From'] = mail_conf['fromaddr']
     message['To'] = ','.join(emails)
     body = '\n\n'.join(found_keywords)
-    body += '\n\n\nThis is an automated message, please do not reply.\n\n\n--\npwnbin'
+    body += '\n\nThis is an automated message, please do not reply.\n--\npwnbin'
     message.attach(MIMEText(body))
 
     # Sendmail
