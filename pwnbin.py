@@ -23,6 +23,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import platform
 
+from pyvirtualdisplay import Display
+import selenium
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+
 def main(argv):
 
     length = 0
@@ -39,7 +44,7 @@ def main(argv):
     display = None
 
     if use_virtual_display:
-        from pyvirtualdisplay import Display
+        
         if platform.system() == "Linux" :
             print("Starting virtual display")
             display = Display(visible=0, size=(1920, 1200))  
@@ -48,9 +53,7 @@ def main(argv):
             print("Virtual display is only supported on Linuxes because it uses xvfb, continuing with real display...")
     
     if use_selenium:
-        import selenium
-        from selenium import webdriver
-        from selenium.webdriver.common.by import By
+        
         print("Starting browser")
         # Avoid error https://bugs.chromium.org/p/chromedriver/issues/detail?id=2473
         options = webdriver.ChromeOptions()
@@ -162,16 +165,19 @@ def write_out(found_keywords, append, file_name):
 
 def find_new_pastes(root_html):
     new_pastes = []
-
-    new_pastes_div_match={'id': 'menu_2'}
-    div = root_html.find('div', new_pastes_div_match)
-
-    # Fixed AttributeError: 'NoneType' object has no attribute 'find'
-    if not div:
-        raise ValueError("Could not find %s in root page HTML.\nText: %s\nSource: %s"%(new_pastes_div_match, root_html.find('body').getText(), root_html))
-
-    ul = div.find('ul', {'class': 'right_menu'})
     
+    ul = None
+    div = root_html.find('div', {'id': 'menu_2'})
+
+    # Fixed AttributeError: 'NoneType' object has no attribute 'find' in new pastebin HTML
+    if div:
+        ul = div.find('ul', {'class': 'right_menu'})
+    else:
+        ul = root_html.find('ul', {'class': 'sidebar__menu'})
+
+    if not ul:
+        raise ValueError("Could not find new pastes list in root page HTML\n\n%s"%root_html)
+
     for li in ul.findChildren():
         if li.find('a'):
             new_pastes.append(str(li.find('a').get('href')).replace("/", ""))
@@ -194,8 +200,11 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
         print("Fetching %s with Selenium"%(page))
         driver.get(page)
         html = driver.page_source
-        if driver.find_element_by_id("challenge-form"):
+        try: 
+            driver.find_element_by_id("challenge-form")
             raise ValueError("Pastebin is asking for a CAPTCHA!")
+        except selenium.common.exceptions.NoSuchElementException:
+            pass
         if raw:
             return driver.find_element_by_tag_name('body').text.encode()
         else:
