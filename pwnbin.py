@@ -22,6 +22,11 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import platform
+import requests
+from pyvirtualdisplay import Display
+import selenium
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 def main(argv):
 
@@ -30,7 +35,7 @@ def main(argv):
     found_keywords = []
     mailed_keywords=[]
     paste_list = set([])
-    root_url = 'http://pastebin.com'
+    root_url = 'http://pastebin.com/'
     raw_url = 'http://pastebin.com/raw/'
     start_time = datetime.datetime.now()
     file_name, keywords, append, run_time, match_total, crawl_total, mail_conf, emails, main_loop_wait_time, use_selenium, use_virtual_display = initialize_options(argv)
@@ -39,7 +44,7 @@ def main(argv):
     display = None
 
     if use_virtual_display:
-        from pyvirtualdisplay import Display
+        
         if platform.system() == "Linux" :
             print("Starting virtual display")
             display = Display(visible=0, size=(1920, 1200))  
@@ -48,9 +53,7 @@ def main(argv):
             print("Virtual display is only supported on Linuxes because it uses xvfb, continuing with real display...")
     
     if use_selenium:
-        import selenium
-        from selenium import webdriver
-        from selenium.webdriver.common.by import By
+        
         print("Starting browser")
         # Avoid error https://bugs.chromium.org/p/chromedriver/issues/detail?id=2473
         options = webdriver.ChromeOptions()
@@ -73,8 +76,25 @@ def main(argv):
         while True:
 
             #    Get pastebin home page html
-            root_html = BeautifulSoup(fetch_page(root_url, use_selenium, driver), 'html.parser')
-            
+            try:
+                root_html = BeautifulSoup(fetch_page(root_url, use_selenium, driver), 'html.parser')
+
+            #    If http request returns an error and 
+            except requests.exceptions.HTTPError as err:
+                if err.response.status_code == 404:
+                    print("\Error 404: Root page not found!")
+                    sys.exit(1)
+                elif err.response.status_code == 403:
+                    print("Error 403: Pastebin is mad at you!")
+                    sys.exit(1)
+                else:
+                    print("You\'re on your own on this one! Error code %s"%err.code)
+                    sys.exit(1)
+
+            except requests.exceptions.TooManyRedirects as err:
+                print("Too many redirects error loading root page")
+                sys.exit(1)
+
             #    For each paste in the public pastes section of home page
             for paste in find_new_pastes(root_html):
                 
@@ -87,7 +107,27 @@ def main(argv):
                     
                     #    Add the pastes url to found_keywords if it contains keywords
                     raw_paste = raw_url+paste
-                    found_keywords = find_keywords(raw_paste, found_keywords, keywords, use_selenium, driver)       
+                    try:
+                        found_keywords = find_keywords(raw_paste, found_keywords, keywords, use_selenium, driver)       
+                    #    If http request returns an error and 
+                    except requests.exceptions.HTTPError as err:
+                        if err.response.status_code == 404:
+                            print("\Error 404: Paste not found! Skipping paste")
+                            continue
+                        elif err.response.status_code == 403:
+                            print("Error 403: Pastebin is mad at you!")
+                            sys.exit(1)
+                        else:
+                            print("You\'re on your own on this one! Error code %s"%err.code)
+                            sys.exit(1)
+
+                    except requests.exceptions.TooManyRedirects as err:
+                        print("Too many redirects error loading paste. Trying to load paste from HTML textarea")
+                        try:
+                            found_keywords = find_keywords(root_url+paste, found_keywords, keywords, use_selenium, driver, from_textarea=True)
+                        except Exception as err:
+                            print("Failed, skipping paste\n%s"%err)
+                            continue
 
                 time.sleep(2)     
 
@@ -104,17 +144,17 @@ def main(argv):
                 mailed_keywords.extend(new_keywords)
 
             if run_time!=None and (start_time + datetime.timedelta(seconds=run_time)) < datetime.datetime.now():
-                print("\n\nReached time limit, Found %d matches." % len(found_keywords))
+                print("Reached time limit, Found %d matches." % len(found_keywords))
                 sys.exit()
 
             # Exit if surpassed specified match timeout 
             if match_total!=None and len(found_keywords) >= match_total:
-                print("\n\nReached match limit, Found %d matches." % len(found_keywords))
+                print("Reached match limit, Found %d matches." % len(found_keywords))
                 sys.exit()
 
             # Exit if surpassed specified crawl total timeout 
             if crawl_total!=None and len(paste_list) >= crawl_total:
-                print("\n\nReached total crawled Pastes limit, Found %d matches." % len(found_keywords))
+                print("Reached total crawled Pastes limit, Found %d matches." % len(found_keywords))
                 sys.exit()
             
             print("Sleeping %s seconds"%(main_loop_wait_time))
@@ -123,22 +163,7 @@ def main(argv):
     #     On keyboard interupt
     except KeyboardInterrupt:
         print("Interrupted")
-
-    #    If http request returns an error and 
-    except HTTPError as err:
-        if err.code == 404:
-            print("\n\nError 404: Pastes not found!")
-        elif err.code == 403:
-            print("\n\nError 403: Pastebin is mad at you!")
-        else:
-            print("\n\nYou\'re on your own on this one! Error code ", err.code)
-
-    #    If http request returns an error and 
-    except URLError as err:
-        print ("\n\nYou\'re on your own on this one! Error code ", err)
-
-    except ValueError as err:
-        print(err)
+        sys.exit(1)
 
     finally:
         print("Exiting")
@@ -160,33 +185,40 @@ def write_out(found_keywords, append, file_name):
             f = open(file_name, 'w')
 
         for paste in found_keywords:
-            f.write(paste)
-        print ("\n")
+            f.write(paste+'\n')
 
 def find_new_pastes(root_html):
     new_pastes = []
-
-    new_pastes_div_match={'id': 'menu_2'}
-    div = root_html.find('div', new_pastes_div_match)
-
-    # Fixed AttributeError: 'NoneType' object has no attribute 'find'
-    if not div:
-        raise ValueError("Could not find %s in root page HTML.\nText: %s"%(new_pastes_div_match, root_html.find('body').getText()))
-
-    ul = div.find('ul', {'class': 'right_menu'})
     
+    ul = None
+    div = root_html.find('div', {'id': 'menu_2'})
+
+    # Fixed AttributeError: 'NoneType' object has no attribute 'find' in new pastebin HTML
+    if div:
+        ul = div.find('ul', {'class': 'right_menu'})
+    else:
+        ul = root_html.find('ul', {'class': 'sidebar__menu'})
+
+    if not ul:
+        raise ValueError("Could not find new pastes list in root page HTML: \n%s"%root_html)
+
     for li in ul.findChildren():
         if li.find('a'):
             new_pastes.append(str(li.find('a').get('href')).replace("/", ""))
 
     return new_pastes
 
-def find_keywords(raw_url, found_keywords, keywords, use_selenium=False, driver=None):
-    paste = fetch_page(raw_url, use_selenium, driver, raw=True)
+def find_keywords(url, found_keywords, keywords, use_selenium=False, driver=None, from_textarea=False):
+    if from_textarea:
+        soup = BeautifulSoup(fetch_page(url, use_selenium, driver), 'html.parser')
+        paste = soup.find('textarea').getText().encode()
+    else:
+        paste = fetch_page(url, use_selenium, driver, raw=True)
+
     #    Todo: Add in functionality to rank hit based on how many of the keywords it contains
     for keyword in keywords:
         if paste.find(keyword.encode()) != -1:
-            found_keywords.append("found " + keyword + " in " + raw_url + "\n")
+            found_keywords.append("found " + keyword + " in " + url)
             break
 
     return found_keywords
@@ -197,8 +229,11 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
         print("Fetching %s with Selenium"%(page))
         driver.get(page)
         html = driver.page_source
-        if 'complete a CAPTCHA' in html:
+        try: 
+            driver.find_element_by_id("challenge-form")
             raise ValueError("Pastebin is asking for a CAPTCHA!")
+        except selenium.common.exceptions.NoSuchElementException:
+            pass
         if raw:
             return driver.find_element_by_tag_name('body').text.encode()
         else:
@@ -206,13 +241,9 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
 
     else:
         print("Fetching %s"%(page))
-        response = urlopen(page)
-        if response.info().get('Content-Encoding') == 'gzip':
-            response_buffer = StringIO(response.read())
-            unzipped_content = gzip.GzipFile(fileobj=response_buffer)
-            return unzipped_content.read()
-        else:
-            return response.read()
+        response = requests.get(page)
+        response.raise_for_status()
+        return response.text.encode()
 
 def initialize_options(argv):
     keywords = ['ssh', 'pass', 'key', 'token']
@@ -300,7 +331,7 @@ def mail_paste(found_keywords, mail_conf, emails):
     message['Subject'] = 'pwnbin ALERT : keyword found in new paste'
     message['From'] = mail_conf['fromaddr']
     message['To'] = ','.join(emails)
-    body = '\n\n'.join(found_keywords)
+    body = '\n'.join(found_keywords)
     body += '\n\nThis is an automated message, please do not reply.\n--\npwnbin'
     message.attach(MIMEText(body))
 
