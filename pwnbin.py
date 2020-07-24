@@ -22,7 +22,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import platform
-
+import requests
 from pyvirtualdisplay import Display
 import selenium
 from selenium import webdriver
@@ -129,7 +129,7 @@ def main(argv):
         sys.exit(1)
         
     #    If http request returns an error and 
-    except HTTPError as err:
+    except requests.exceptions.HTTPError as err:
         if err.code == 404:
             print("\n\nError 404: Pastes not found!")
             sys.exit(1)
@@ -139,11 +139,6 @@ def main(argv):
         else:
             print("\n\nYou\'re on your own on this one! Error code %s"%err.code)
             sys.exit(1)
-
-    #    If http request returns an error and 
-    except URLError as err:
-        print ("\n\nYou\'re on your own on this one! Error %s"%err)
-        sys.exit(1)
 
     finally:
         print("Exiting")
@@ -217,13 +212,9 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
 
     else:
         print("Fetching %s"%(page))
-        response = urlopen(page)
-        if response.info().get('Content-Encoding') == 'gzip':
-            response_buffer = StringIO(response.read())
-            unzipped_content = gzip.GzipFile(fileobj=response_buffer)
-            return unzipped_content.read()
-        else:
-            return response.read()
+        response = requests.get(page)
+        response.raise_for_status()
+        return response.text.encode()
 
 def initialize_options(argv):
     keywords = ['ssh', 'pass', 'key', 'token']
