@@ -81,10 +81,10 @@ def main(argv):
 
             #    If http request returns an error and 
             except requests.exceptions.HTTPError as err:
-                if err.code == 404:
+                if err.response.status_code == 404:
                     print("\Error 404: Root page not found!")
                     sys.exit(1)
-                elif err.code == 403:
+                elif err.response.status_code == 403:
                     print("Error 403: Pastebin is mad at you!")
                     sys.exit(1)
                 else:
@@ -111,10 +111,10 @@ def main(argv):
                         found_keywords = find_keywords(raw_paste, found_keywords, keywords, use_selenium, driver)       
                     #    If http request returns an error and 
                     except requests.exceptions.HTTPError as err:
-                        if err.code == 404:
+                        if err.response.status_code == 404:
                             print("\Error 404: Paste not found! Skipping paste")
                             continue
-                        elif err.code == 403:
+                        elif err.response.status_code == 403:
                             print("Error 403: Pastebin is mad at you!")
                             sys.exit(1)
                         else:
@@ -126,7 +126,7 @@ def main(argv):
                         try:
                             found_keywords = find_keywords(root_url+paste, found_keywords, keywords, use_selenium, driver, from_textarea=True)
                         except Exception as err:
-                            print("Failed: %s"%err)
+                            print("Failed, skipping paste\n%s"%err)
                             continue
 
                 time.sleep(2)     
@@ -210,8 +210,8 @@ def find_new_pastes(root_html):
 
 def find_keywords(url, found_keywords, keywords, use_selenium=False, driver=None, from_textarea=False):
     if from_textarea:
-        soup = BeautifulSoup(fetch_page(url, use_selenium, driver))
-        paste = soup.find('textarea').getText()
+        soup = BeautifulSoup(fetch_page(url, use_selenium, driver), 'html.parser')
+        paste = soup.find('textarea').getText().encode()
     else:
         paste = fetch_page(url, use_selenium, driver, raw=True)
 
