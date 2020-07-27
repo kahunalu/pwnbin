@@ -338,8 +338,8 @@ def mail_paste(found_keywords, mail_conf, emails):
     # Sendmail
     server = smtplib.SMTP(mail_conf['smtp_server'])
     server.ehlo_or_helo_if_needed()
-    if mail_conf['smtp_ssl'] : server.starttls()
-    if mail_conf['smtp_auth'] : server.login(mail_conf['smtp_username'], mail_conf['smtp_password'] )
+    if mail_conf['smtp_ssl'].lower() in ["yes", "true"] : server.starttls()
+    if mail_conf['smtp_auth'].lower() in ["yes", "true"]: server.login(mail_conf['smtp_username'], mail_conf['smtp_password'] )
     server.sendmail(mail_conf['fromaddr'] , ','.join(emails), message.as_string())
     server.quit()
 
