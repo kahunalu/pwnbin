@@ -4,7 +4,7 @@ try:
     from urllib.request import urlopen
     from urllib.error import HTTPError, URLError
 except ImportError: 
-    from urllib2 import urlopen, HTTPError, URLError
+    from urllib2 import urlopen, HTTPError, URLError # type:ignore[import-error]
 
 import datetime
 import sys, getopt
@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 try: 
     from io import StringIO
 except ImportError: 
-    from StringIO import StringIO
+    from StringIO import StringIO # type:ignore[import-error]
 
 import gzip
 from configparser import ConfigParser
@@ -79,21 +79,17 @@ def main(argv):
             try:
                 root_html = BeautifulSoup(fetch_page(root_url, use_selenium, driver), 'html.parser')
 
-            #    If http request returns an error and 
+            #    If http request returns an error
             except requests.exceptions.HTTPError as err:
                 if err.response.status_code == 404:
-                    print("\Error 404: Root page not found!")
-                    sys.exit(1)
+                    raise RuntimeError("Error 404: Root page not found!") from err
                 elif err.response.status_code == 403:
-                    print("Error 403: Pastebin is mad at you!")
-                    sys.exit(1)
+                    raise RuntimeError("Error 403: Pastebin is mad at you!") from err
                 else:
-                    print("You\'re on your own on this one! Error code %s"%err.code)
-                    sys.exit(1)
+                    raise
 
             except requests.exceptions.TooManyRedirects as err:
-                print("Too many redirects error loading root page")
-                sys.exit(1)
+                raise RuntimeError("Too many redirects error loading root page") from err
 
             #    For each paste in the public pastes section of home page
             for paste in find_new_pastes(root_html):
@@ -115,11 +111,9 @@ def main(argv):
                             print("\Error 404: Paste not found! Skipping paste")
                             continue
                         elif err.response.status_code == 403:
-                            print("Error 403: Pastebin is mad at you!")
-                            sys.exit(1)
+                            raise RuntimeError("Error 403: Pastebin is mad at you!") from err
                         else:
-                            print("You\'re on your own on this one! Error code %s"%err.code)
-                            sys.exit(1)
+                            raise
 
                     except requests.exceptions.TooManyRedirects as err:
                         print("Too many redirects error loading paste. Trying to load paste from HTML textarea")
@@ -231,7 +225,7 @@ def fetch_page(page, use_selenium=False, driver=None, raw=False):
         html = driver.page_source
         try: 
             driver.find_element_by_id("challenge-form")
-            raise ValueError("Pastebin is asking for a CAPTCHA!")
+            raise ValueError("Pastebin is mad at you! Getting a CAPTCHA challenge.")
         except selenium.common.exceptions.NoSuchElementException:
             pass
         if raw:
@@ -261,13 +255,13 @@ def initialize_options(argv):
     try:
         opts, args = getopt.getopt(argv,"h:k:o:t:n:m:ac:e:w:sv")
     except getopt.GetoptError:
-        print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/kahunalu/pwnbin for more informations.')
+        print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/tristanlatr/pwnbin for more informations.')
         sys.exit(2)
 
     for opt, arg in opts:
 
         if opt == '-h':
-            print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/kahunalu/pwnbin for more informations.')
+            print('Basic usage: pwnbin.py -k <keyword1>,<keyword2>,<keyword3>... -o <outputfile>\nVisit https://github.com/tristanlatr/pwnbin for more informations.')
             sys.exit()
 
         elif opt == '-a':
@@ -340,7 +334,7 @@ def mail_paste(found_keywords, mail_conf, emails):
     server.ehlo_or_helo_if_needed()
     if mail_conf['smtp_ssl'].lower() in ["yes", "true"] : server.starttls()
     if mail_conf['smtp_auth'].lower() in ["yes", "true"]: server.login(mail_conf['smtp_username'], mail_conf['smtp_password'] )
-    server.sendmail(mail_conf['fromaddr'] , ','.join(emails), message.as_string())
+    server.sendmail(from_addr=mail_conf['fromaddr'], to_addrs=emails, msg=message.as_string())
     server.quit()
 
 if __name__ == "__main__":
