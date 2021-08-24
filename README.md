@@ -8,7 +8,7 @@ Email alerts can be sent when finishing program main loop.
 
 ## Install
 
-    git clone https://github.com/kahunalu/pwnbin.git
+    git clone https://github.com/tristanlatr/pwnbin.git
     cd pwnbin
     python3 -m pip install -r requirements.txt
 
