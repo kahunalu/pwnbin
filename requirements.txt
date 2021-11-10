@@ -1,0 +1,5 @@
+bs4
+configparser
+requests
+selenium
+PyVirtualDisplay
